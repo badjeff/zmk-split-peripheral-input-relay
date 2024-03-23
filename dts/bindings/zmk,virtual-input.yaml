@@ -1,0 +1,7 @@
+# Copyright (c) 2024 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: |
+   Dummy device as an dummy input event emitter.
+
+compatible: "zmk,virtual-input"

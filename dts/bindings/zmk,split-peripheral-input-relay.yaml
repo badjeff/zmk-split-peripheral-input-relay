@@ -1,0 +1,15 @@
+# Copyright (c) 2024 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: |
+  Allows defining input relay channels
+
+compatible: "zmk,split-peripheral-input-relay"
+
+properties:
+  relay-channel:
+    type: int
+    required: true
+  device:
+    type: phandle
+    required: true

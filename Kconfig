@@ -1,0 +1,17 @@
+# Sensor data simulator
+#
+# Copyright (c) 2019 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+DT_COMPAT_ZMK_SPLT_PERIPHERAL_INPUT_RELAY := zmk,split-peripheral-input-relay
+DT_COMPAT_ZMK_VIRTUAL_INPUT := zmk,virtual-input
+
+config ZMK_SPLT_PERIPHERAL_INPUT_RELAY
+		bool
+		default $(dt_compat_enabled,$(DT_COMPAT_ZMK_SPLT_PERIPHERAL_INPUT_RELAY))
+
+config ZMK_VIRTUAL_INPUT
+		bool
+		default $(dt_compat_enabled,$(DT_COMPAT_ZMK_VIRTUAL_INPUT))
