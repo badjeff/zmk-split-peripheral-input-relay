@@ -96,5 +96,5 @@ Update split central devicetree file `board_left.overlay`:
 Enable the input config in your all `<shield>_{ left | right }.config`:
 ```conf
 CONFIG_INPUT=y
-/* plus, other input device drivt config */
+/* plus, other input device drive config */
 ```
