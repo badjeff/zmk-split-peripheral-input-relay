@@ -4,7 +4,7 @@ This module add a input relay to input subsystem for ZMK.
 
 ## What it does
 
-This module sideload a new set of GATT Service and Characteratics into existing split bt paired connection. The new characteristics allow to transfer input event from peripherals to central via an annotated relay channel id. Then, input events would re-emitted from a `zmk,virtual-device` on central. The events from peripherals could be handled by `zmk,input-listener` on central side.
+This module sideload a new set of GATT Service and Characteratics into existing split bt paired connection. The new characteristics allow to transfer input event from peripherals to central with a relay-channel id. Then, input events would re-emitted from a `zmk,virtual-device` on central. The events from peripherals could be handled by `zmk,input-listener` on central side.
 
 In short, user can read more than one pointing device on central and peripherals sheild simultaneously.
 
@@ -28,6 +28,24 @@ manifest:
     # ...
 ```
 
+Update `board.keymap`:
+```keymap
+/ {
+	/* assign `input-listener` to all pointing devices */
+	/* &pd0 on central, &pd1 on peripheral */
+
+        trackball_central_listener {
+                compatible = "zmk,input-listener";
+                device = <&pd0>;
+	};
+
+        trackball_peripheral_listener {
+                compatible = "zmk,input-listener";
+                device = <&pd1>;
+	};
+}/
+```
+
 Update split peripheral devicetree file `board_right.overlay`:
 ```dts
 /* enable &pd0 on split peripheral. typical input device for zephyr input subsystem. */
@@ -37,7 +55,8 @@ Update split peripheral devicetree file `board_right.overlay`:
 /* this is an alias of your actual wired input device sensor in your peripheral shield. */
 /* e.g. SPI optical sensor for trackball */
 &pd0 {
-  status = "okay";
+	status = "okay";
+	/* the rest of sensor config should be config here, e.g. gpios */
 };
 
 / {
@@ -50,11 +69,14 @@ Update split peripheral devicetree file `board_right.overlay`:
 	input_relay_config_102 {
 		compatible = "zmk,split-peripheral-input-relay";
 
-		/* peripheral side input device, used to be intecepted and be resurrected on central */
+		/* peripheral side input device, used to... */
+		/*  - be intecepted on peripheral; */
+		/*  - and then, be resurrected as `zmk,virtual-device` on central; */
 		device = <&pd0>;
 		
-		/* channel id, used to annotate raw input event. pick any 8bit integer. */
-		/* NOTE: should matching relay-channel on central overlay */
+		/* channel id, used to be be transfered along with all input events. */
+		/* NOTE 1: pick any 8bit integer. (1 - 255) */
+		/* NOTE 2: should matching relay-channel on central overlay */
 		relay-channel = <102>;
 	};
 };
@@ -68,7 +90,8 @@ Update split central devicetree file `board_left.overlay`:
 /* this is an alias of your actual wired input device sensor in your central shield. */
 /* e.g. SPI optical sensor for trackball */
 &pd0 {
-  status = "okay";
+	status = "okay";
+	/* the rest of sensor config should be config here, e.g. gpios */
 };
 
 / {
@@ -82,7 +105,7 @@ Update split central devicetree file `board_left.overlay`:
 	input_relay_config_102 {
 		compatible = "zmk,split-peripheral-input-relay";
 		
-		/* channel id, used to filter incoming annotated input event from split peripheral */
+		/* channel id, used to filter incoming input event from split peripheral */
 		/* NOTE: should matching relay-channel on peripheral overlay */
 		relay-channel = <102>;
 
@@ -98,3 +121,4 @@ Enable the input config in your all `<shield>_{ left | right }.config`:
 CONFIG_INPUT=y
 /* plus, other input device drive config */
 ```
+
