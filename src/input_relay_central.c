@@ -162,10 +162,10 @@ static int split_central_subscribe(struct bt_conn *conn, struct bt_gatt_subscrib
     int err = bt_gatt_subscribe(conn, params);
     switch (err) {
     case -EALREADY:
-        LOG_WRN("[ALREADY SUBSCRIBED]");
+        LOG_DBG("[ALREADY SUBSCRIBED]");
         break;
     case 0:
-        LOG_WRN("[SUBSCRIBED]");
+        LOG_DBG("[SUBSCRIBED]");
         break;
     default:
         LOG_ERR("Subscribe failed (err %d)", err);
@@ -194,7 +194,7 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
         return BT_GATT_ITER_STOP;
     }
 
-    LOG_WRN("[ATTRIBUTE] handle %u", attr->handle);
+    LOG_DBG("[ATTRIBUTE] handle %u", attr->handle);
     const struct bt_uuid *chrc_uuid = ((struct bt_gatt_chrc *)attr->user_data)->uuid;
 
 #if CONFIG_INPUT
