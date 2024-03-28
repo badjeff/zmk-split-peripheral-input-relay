@@ -357,7 +357,7 @@ struct split_peripheral_input_relay_config {
 
 #define RELY_CFG_DEFINE(n)                                                                         \
     static const struct split_peripheral_input_relay_config config_##n = {                         \
-        .relay_channel = DT_PROP(DT_DRV_INST(0), relay_channel),                                   \
+        .relay_channel = DT_PROP(DT_DRV_INST(n), relay_channel),                                   \
         .device = DEVICE_DT_GET(DT_INST_PHANDLE(n, device)),                                       \
     };
 
