@@ -117,8 +117,19 @@ K_MSGQ_DEFINE(peripheral_input_event_msgq, sizeof(struct input_event),
 void peripheral_input_event_work_callback(struct k_work *work) {
     struct input_event ev;
     while (k_msgq_get(&peripheral_input_event_msgq, &ev, K_NO_WAIT) == 0) {
-        LOG_DBG("Trigger input change for %d/%d/%s", ev.code, ev.value, ev.sync?"s":"ns");
-        input_report_rel(ev.dev, ev.code, ev.value, ev.sync, K_NO_WAIT);
+        LOG_DBG("Trigger input change for %d/%d/%d/%d", 
+                ev.type, ev.code, ev.value, ev.sync?0:1);
+        switch (ev.type) {
+        case INPUT_EV_REL:
+            input_report_rel(ev.dev, ev.code, ev.value, ev.sync, K_NO_WAIT);
+            break;
+        case INPUT_EV_ABS:
+            input_report_abs(ev.dev, ev.code, ev.value, ev.sync, K_NO_WAIT);
+            break;
+        case INPUT_EV_KEY:
+            input_report_key(ev.dev, ev.code, ev.value, ev.sync, K_NO_WAIT);
+            break;
+        }
     }
 }
 

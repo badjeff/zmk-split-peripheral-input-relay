@@ -95,8 +95,8 @@ void zmk_split_bt_input_ev_triggered(uint8_t relay_channel, struct input_event *
             .sync = evt->sync, .type = evt->type,
             .code = evt->code, .value = evt->value};
 
-    LOG_DBG("Send input: %d %d %d %s",
-        ev.relay_channel, ev.code, ev.value, ev.sync?"s":"ns");
+    LOG_DBG("Send input: rc-%d t-%d c-%d v-%d s-%d",
+        ev.relay_channel, ev.type, ev.code, ev.value, ev.sync?1:0);
 
     send_input_state(ev);
 }
