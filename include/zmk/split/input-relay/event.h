@@ -6,7 +6,7 @@
 
 #pragma once
 
-struct zmk_split_bt_input_event {
+struct zmk_split_bt_input_relay_event {
   uint8_t relay_channel;
 	uint8_t sync;
 	uint8_t type;

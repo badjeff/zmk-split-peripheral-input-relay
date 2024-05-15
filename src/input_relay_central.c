@@ -26,14 +26,14 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/split/input-relay/uuid.h>
 #include <zmk/split/input-relay/event.h>
 
-enum alt_peripheral_slot_state {
+enum ir_peripheral_slot_state {
     PERIPHERAL_SLOT_STATE_OPEN,
     PERIPHERAL_SLOT_STATE_CONNECTING,
     PERIPHERAL_SLOT_STATE_CONNECTED,
 };
 
-struct alt_peripheral_slot {
-    enum alt_peripheral_slot_state state;
+struct ir_peripheral_slot {
+    enum ir_peripheral_slot_state state;
     struct bt_conn *conn;
     struct bt_gatt_discover_params discover_params;
     struct bt_gatt_subscribe_params subscribe_params;
@@ -41,11 +41,11 @@ struct alt_peripheral_slot {
     struct bt_gatt_discover_params sub_discover_params;
 };
 
-static struct alt_peripheral_slot peripherals[ZMK_SPLIT_BLE_PERIPHERAL_COUNT];
+static struct ir_peripheral_slot peripherals[ZMK_SPLIT_BLE_PERIPHERAL_COUNT];
 
-static const struct bt_uuid_128 split_alt_service_uuid = BT_UUID_INIT_128(ZMK_SPLIT_BT_ALT_SERVICE_UUID);
+static const struct bt_uuid_128 split_ir_service_uuid = BT_UUID_INIT_128(ZMK_SPLIT_BT_IR_SERVICE_UUID);
 
-int alt_peripheral_slot_index_for_conn(struct bt_conn *conn) {
+static int ir_peripheral_slot_index_for_conn(struct bt_conn *conn) {
     for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
         if (peripherals[i].conn == conn) {
             return i;
@@ -54,20 +54,20 @@ int alt_peripheral_slot_index_for_conn(struct bt_conn *conn) {
     return -EINVAL;
 }
 
-struct alt_peripheral_slot *alt_peripheral_slot_for_conn(struct bt_conn *conn) {
-    int idx = alt_peripheral_slot_index_for_conn(conn);
+static struct ir_peripheral_slot *ir_peripheral_slot_for_conn(struct bt_conn *conn) {
+    int idx = ir_peripheral_slot_index_for_conn(conn);
     if (idx < 0) {
         return NULL;
     }
     return &peripherals[idx];
 }
 
-int release_alt_peripheral_slot(int index) {
+static int release_ir_peripheral_slot(int index) {
     if (index < 0 || index >= ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
         return -EINVAL;
     }
 
-    struct alt_peripheral_slot *slot = &peripherals[index];
+    struct ir_peripheral_slot *slot = &peripherals[index];
 
     if (slot->state == PERIPHERAL_SLOT_STATE_OPEN) {
         return -EINVAL;
@@ -86,12 +86,12 @@ int release_alt_peripheral_slot(int index) {
     return 0;
 }
 
-int reserve_alt_peripheral_slot_for_conn(struct bt_conn *conn) {
+static int reserve_ir_peripheral_slot_for_conn(struct bt_conn *conn) {
     int i = zmk_ble_put_peripheral_addr(bt_conn_get_dst(conn));
     if (i >= 0) {
         if (peripherals[i].state == PERIPHERAL_SLOT_STATE_OPEN) {
             // Be sure the slot is fully reinitialized.
-            release_alt_peripheral_slot(i);
+            release_ir_peripheral_slot(i);
             peripherals[i].conn = conn;
             peripherals[i].state = PERIPHERAL_SLOT_STATE_CONNECTED;
             return i;
@@ -101,13 +101,13 @@ int reserve_alt_peripheral_slot_for_conn(struct bt_conn *conn) {
     return -ENOMEM;
 }
 
-int release_alt_peripheral_slot_for_conn(struct bt_conn *conn) {
-    int idx = alt_peripheral_slot_index_for_conn(conn);
+int release_ir_peripheral_slot_for_conn(struct bt_conn *conn) {
+    int idx = ir_peripheral_slot_index_for_conn(conn);
     if (idx < 0) {
         return idx;
     }
 
-    return release_alt_peripheral_slot(idx);
+    return release_ir_peripheral_slot(idx);
 }
 
 #if CONFIG_INPUT
@@ -135,7 +135,7 @@ void peripheral_input_event_work_callback(struct k_work *work) {
 
 K_WORK_DEFINE(peripheral_input_event_work, peripheral_input_event_work_callback);
 
-const struct device* device_get_for_relay_channel(uint8_t relay_channel);
+const struct device* virtual_input_device_get_for_relay_channel(uint8_t relay_channel);
 
 static uint8_t split_central_input_notify_func(struct bt_conn *conn,
                                                struct bt_gatt_subscribe_params *params,
@@ -148,10 +148,10 @@ static uint8_t split_central_input_notify_func(struct bt_conn *conn,
 
     LOG_DBG("[INPUT NOTIFICATION] data %p length %u", data, length);
 
-    struct zmk_split_bt_input_event evt;
-    memcpy(&evt, data, MIN(length, sizeof(struct zmk_split_bt_input_event)));
+    struct zmk_split_bt_input_relay_event evt;
+    memcpy(&evt, data, MIN(length, sizeof(struct zmk_split_bt_input_relay_event)));
 
-    const struct device *dev = device_get_for_relay_channel(evt.relay_channel);
+    const struct device *dev = virtual_input_device_get_for_relay_channel(evt.relay_channel);
     if (dev == NULL) {
         LOG_DBG("Unable to retrieve virtual device for channel: %d", evt.relay_channel);
         return BT_GATT_ITER_CONTINUE;
@@ -199,9 +199,9 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
         return BT_GATT_ITER_STOP;
     }
 
-    struct alt_peripheral_slot *slot = alt_peripheral_slot_for_conn(conn);
+    struct ir_peripheral_slot *slot = ir_peripheral_slot_for_conn(conn);
     if (slot == NULL) {
-        LOG_ERR("No peripheral state found for connection");
+        LOG_ERR("No peripheral slot found for connection");
         return BT_GATT_ITER_STOP;
     }
 
@@ -209,7 +209,7 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
     const struct bt_uuid *chrc_uuid = ((struct bt_gatt_chrc *)attr->user_data)->uuid;
 
 #if CONFIG_INPUT
-    if (bt_uuid_cmp(chrc_uuid, BT_UUID_DECLARE_128(ZMK_SPLIT_BT_ALT_CHAR_INPUT_STATE_UUID)) == 0) {
+    if (bt_uuid_cmp(chrc_uuid, BT_UUID_DECLARE_128(ZMK_SPLIT_BT_IR_CHAR_INPUT_STATE_UUID)) == 0) {
         LOG_DBG("Found input state characteristic");
         slot->discover_params.uuid = NULL;
         slot->discover_params.start_handle = attr->handle + 2;
@@ -244,13 +244,13 @@ static uint8_t split_central_service_discovery_func(struct bt_conn *conn,
 
     LOG_DBG("[ATTRIBUTE] handle %u", attr->handle);
 
-    struct alt_peripheral_slot *slot = alt_peripheral_slot_for_conn(conn);
+    struct ir_peripheral_slot *slot = ir_peripheral_slot_for_conn(conn);
     if (slot == NULL) {
         LOG_ERR("No peripheral state found for connection");
         return BT_GATT_ITER_STOP;
     }
 
-    if (bt_uuid_cmp(slot->discover_params.uuid, BT_UUID_DECLARE_128(ZMK_SPLIT_BT_ALT_SERVICE_UUID)) !=
+    if (bt_uuid_cmp(slot->discover_params.uuid, BT_UUID_DECLARE_128(ZMK_SPLIT_BT_IR_SERVICE_UUID)) !=
         0) {
         LOG_DBG("Found other service");
         return BT_GATT_ITER_CONTINUE;
@@ -273,14 +273,14 @@ static void split_central_process_connection(struct bt_conn *conn) {
 
     LOG_DBG("Current security for connection: %d", bt_conn_get_security(conn));
 
-    struct alt_peripheral_slot *slot = alt_peripheral_slot_for_conn(conn);
+    struct ir_peripheral_slot *slot = ir_peripheral_slot_for_conn(conn);
     if (slot == NULL) {
         LOG_ERR("No peripheral state found for connection");
         return;
     }
 
     if (!slot->subscribe_params.value_handle) {
-        slot->discover_params.uuid = &split_alt_service_uuid.uuid;
+        slot->discover_params.uuid = &split_ir_service_uuid.uuid;
         slot->discover_params.func = split_central_service_discovery_func;
         slot->discover_params.start_handle = 0x0001;
         slot->discover_params.end_handle = 0xffff;
@@ -316,13 +316,13 @@ static void split_central_connected(struct bt_conn *conn, uint8_t conn_err) {
 
     if (conn_err) {
         LOG_ERR("Failed to connect to %s (%u)", addr_str, conn_err);
-        release_alt_peripheral_slot_for_conn(conn);
+        release_ir_peripheral_slot_for_conn(conn);
         return;
     }
 
     LOG_DBG("Connected: %s", addr_str);
 
-    int slot_idx = reserve_alt_peripheral_slot_for_conn(conn);
+    int slot_idx = reserve_ir_peripheral_slot_for_conn(conn);
     if (slot_idx < 0) {
         LOG_ERR("Unable to reserve peripheral slot for connection (err %d)", slot_idx);
         return;
@@ -339,7 +339,7 @@ static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
 
     LOG_DBG("Disconnected: %s (reason %d)", addr_str, reason);
 
-    err = release_alt_peripheral_slot_for_conn(conn);
+    err = release_ir_peripheral_slot_for_conn(conn);
 
     if (err < 0) {
         return;
@@ -374,7 +374,7 @@ struct split_peripheral_input_relay_config {
 
 DT_INST_FOREACH_STATUS_OKAY(RELY_CFG_DEFINE)
 
-const struct device* device_get_for_relay_channel(uint8_t relay_channel) {
+const struct device* virtual_input_device_get_for_relay_channel(uint8_t relay_channel) {
     #define COND_CMP_RELAY_CHANNEL(n)                               \
         if (relay_channel == config_##n.relay_channel) {            \
             return config_##n.device;                               \
@@ -385,7 +385,7 @@ const struct device* device_get_for_relay_channel(uint8_t relay_channel) {
 
 #else
 
-const struct device* device_get_for_relay_channel(uint8_t relay_channel) {
+const struct device* virtual_input_device_get_for_relay_channel(uint8_t relay_channel) {
     return NULL;
 }
 

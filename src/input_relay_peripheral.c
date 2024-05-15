@@ -24,7 +24,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #if CONFIG_INPUT
 
-static struct zmk_split_bt_input_event last_input_event;
+struct zmk_split_bt_input_relay_event last_input_event;
 
 static ssize_t split_svc_input_state(struct bt_conn *conn, const struct bt_gatt_attr *attrs,
                                       void *buf, uint16_t len, uint16_t offset) {
@@ -38,26 +38,26 @@ static void split_svc_input_state_ccc(const struct bt_gatt_attr *attr, uint16_t 
 #endif /* CONFIG_INPUT */
 
 BT_GATT_SERVICE_DEFINE(
-    alt_split_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_ALT_SERVICE_UUID)),
+    ir_split_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_IR_SERVICE_UUID)),
 #if CONFIG_INPUT
-    BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_ALT_CHAR_INPUT_STATE_UUID),
+    BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_IR_CHAR_INPUT_STATE_UUID),
                            BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_READ_ENCRYPT,
                            split_svc_input_state, NULL, &last_input_event),
     BT_GATT_CCC(split_svc_input_state_ccc, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
 #endif /* CONFIG_INPUT */
 );
 
-K_THREAD_STACK_DEFINE(service_alt_q_stack, CONFIG_ZMK_SPLIT_BLE_PERIPHERAL_STACK_SIZE);
+K_THREAD_STACK_DEFINE(service_ir_q_stack, CONFIG_ZMK_SPLIT_BLE_PERIPHERAL_STACK_SIZE);
 
-struct k_work_q service_alt_work_q;
+struct k_work_q service_ir_work_q;
 
 #if CONFIG_INPUT
-K_MSGQ_DEFINE(input_state_msgq, sizeof(struct zmk_split_bt_input_event),
+K_MSGQ_DEFINE(input_state_msgq, sizeof(struct zmk_split_bt_input_relay_event),
               CONFIG_ZMK_SPLIT_BLE_PERIPHERAL_POSITION_QUEUE_SIZE, 4);
 
 void send_input_state_callback(struct k_work *work) {
     while (k_msgq_get(&input_state_msgq, &last_input_event, K_NO_WAIT) == 0) {
-        int err = bt_gatt_notify(NULL, &alt_split_svc.attrs[1], &last_input_event, 
+        int err = bt_gatt_notify(NULL, &ir_split_svc.attrs[1], &last_input_event, 
                                  sizeof(last_input_event));
         if (err) {
             LOG_WRN("Error notifying %d", err);
@@ -67,14 +67,14 @@ void send_input_state_callback(struct k_work *work) {
 
 K_WORK_DEFINE(service_input_notify_work, send_input_state_callback);
 
-int send_input_state(struct zmk_split_bt_input_event ev) {
+int send_input_state(struct zmk_split_bt_input_relay_event ev) {
     int err = k_msgq_put(&input_state_msgq, &ev, K_MSEC(100));
     if (err) {
         // retry...
         switch (err) {
         case -EAGAIN: {
             LOG_WRN("Input state message queue full, popping first message and queueing again");
-            struct zmk_split_bt_input_event discarded_state;
+            struct zmk_split_bt_input_relay_event discarded_state;
             k_msgq_get(&input_state_msgq, &discarded_state, K_NO_WAIT);
             return send_input_state(ev);
         }
@@ -84,13 +84,13 @@ int send_input_state(struct zmk_split_bt_input_event ev) {
         }
     }
 
-    k_work_submit_to_queue(&service_alt_work_q, &service_input_notify_work);
+    k_work_submit_to_queue(&service_ir_work_q, &service_input_notify_work);
     return 0;
 }
 
 void zmk_split_bt_input_ev_triggered(uint8_t relay_channel, struct input_event *evt) {
-    struct zmk_split_bt_input_event ev =
-        (struct zmk_split_bt_input_event){
+    struct zmk_split_bt_input_relay_event ev =
+        (struct zmk_split_bt_input_relay_event){
             .relay_channel = relay_channel,
             .sync = evt->sync, .type = evt->type,
             .code = evt->code, .value = evt->value};
@@ -119,8 +119,8 @@ DT_INST_FOREACH_STATUS_OKAY(RELY_INST)
 static int service_init(void) {
     static const struct k_work_queue_config queue_config = {
         .name = "Split Peripheral Alternative Notification Queue"};
-    k_work_queue_start(&service_alt_work_q, service_alt_q_stack, 
-                       K_THREAD_STACK_SIZEOF(service_alt_q_stack),
+    k_work_queue_start(&service_ir_work_q, service_ir_q_stack, 
+                       K_THREAD_STACK_SIZEOF(service_ir_q_stack),
                        CONFIG_ZMK_SPLIT_BLE_PERIPHERAL_PRIORITY, &queue_config);
 
     return 0;
