@@ -103,14 +103,14 @@ void zmk_split_bt_input_ev_triggered(uint8_t relay_channel, struct input_event *
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 
-#define RELY_INST(n)                                                                               \
-    static uint8_t relay_channel_##n = DT_PROP(DT_DRV_INST(n), relay_channel);                     \
-    void input_handler_##n(struct input_event *evt) {                                              \
-        zmk_split_bt_input_ev_triggered(relay_channel_##n, evt);                                   \
-    }                                                                                              \
+#define INPUT_RELY_INST(n)                                                                   \
+    static uint8_t relay_channel_##n = DT_PROP(DT_DRV_INST(n), relay_channel);               \
+    void input_handler_##n(struct input_event *evt) {                                        \
+        zmk_split_bt_input_ev_triggered(relay_channel_##n, evt);                             \
+    }                                                                                        \
     INPUT_CALLBACK_DEFINE(DEVICE_DT_GET(DT_INST_PHANDLE(n, device)), input_handler_##n);
 
-DT_INST_FOREACH_STATUS_OKAY(RELY_INST)
+DT_INST_FOREACH_STATUS_OKAY(INPUT_RELY_INST)
 
 #endif /* DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT) */
 

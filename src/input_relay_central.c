@@ -43,7 +43,8 @@ struct ir_peripheral_slot {
 
 static struct ir_peripheral_slot peripherals[ZMK_SPLIT_BLE_PERIPHERAL_COUNT];
 
-static const struct bt_uuid_128 split_ir_service_uuid = BT_UUID_INIT_128(ZMK_SPLIT_BT_IR_SERVICE_UUID);
+static const struct bt_uuid_128 split_ir_service_uuid = BT_UUID_INIT_128(
+    ZMK_SPLIT_BT_IR_SERVICE_UUID);
 
 static int ir_peripheral_slot_index_for_conn(struct bt_conn *conn) {
     for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
@@ -250,8 +251,9 @@ static uint8_t split_central_service_discovery_func(struct bt_conn *conn,
         return BT_GATT_ITER_STOP;
     }
 
-    if (bt_uuid_cmp(slot->discover_params.uuid, BT_UUID_DECLARE_128(ZMK_SPLIT_BT_IR_SERVICE_UUID)) !=
-        0) {
+    if (bt_uuid_cmp(slot->discover_params.uuid, 
+        BT_UUID_DECLARE_128(ZMK_SPLIT_BT_IR_SERVICE_UUID)) != 0
+    ) {
         LOG_DBG("Found other service");
         return BT_GATT_ITER_CONTINUE;
     }
@@ -366,20 +368,20 @@ struct split_peripheral_input_relay_config {
     const struct device *device;
 };
 
-#define RELY_CFG_DEFINE(n)                                                                         \
-    static const struct split_peripheral_input_relay_config config_##n = {                         \
-        .relay_channel = DT_PROP(DT_DRV_INST(n), relay_channel),                                   \
-        .device = DEVICE_DT_GET(DT_INST_PHANDLE(n, device)),                                       \
+#define INPUT_RELY_CFG_DEFINE(n)                                                          \
+    static const struct split_peripheral_input_relay_config config_##n = {                \
+        .relay_channel = DT_PROP(DT_DRV_INST(n), relay_channel),                          \
+        .device = DEVICE_DT_GET(DT_INST_PHANDLE(n, device)),                              \
     };
 
-DT_INST_FOREACH_STATUS_OKAY(RELY_CFG_DEFINE)
+DT_INST_FOREACH_STATUS_OKAY(INPUT_RELY_CFG_DEFINE)
 
 const struct device* virtual_input_device_get_for_relay_channel(uint8_t relay_channel) {
-    #define COND_CMP_RELAY_CHANNEL(n)                               \
+    #define IR_C_COND_CMP_RELAY_CHANNEL(n)                          \
         if (relay_channel == config_##n.relay_channel) {            \
             return config_##n.device;                               \
         }
-    DT_INST_FOREACH_STATUS_OKAY(COND_CMP_RELAY_CHANNEL)
+    DT_INST_FOREACH_STATUS_OKAY(IR_C_COND_CMP_RELAY_CHANNEL)
     return NULL;
 }
 
