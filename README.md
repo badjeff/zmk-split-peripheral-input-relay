@@ -1,4 +1,4 @@
-# Zmk Split Peripheral Input Relay
+# ZMK Split Peripheral Input Relay
 
 This module add a input relay to input subsystem for ZMK.
 
@@ -7,6 +7,8 @@ This module add a input relay to input subsystem for ZMK.
 This module sideload a new set of GATT Service and Characteratics into existing split bt paired connection. The new characteristics allow to transfer input event from peripherals to central with a relay-channel id. Then, input events would re-emitted from a `zmk,virtual-device` on central. The events from peripherals could be handled by `zmk,input-listener` on central side.
 
 In short, user can read more than one pointing device on central and peripherals sheild simultaneously.
+
+You might also want to checkout [this module](https://github.com/badjeff/zmk-split-peripheral-output-relay) that provides opposite directional proxying for output.
 
 ## Installation
 
