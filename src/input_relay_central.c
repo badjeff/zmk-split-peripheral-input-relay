@@ -88,6 +88,17 @@ static int release_ir_peripheral_slot(int index) {
 }
 
 static int reserve_ir_peripheral_slot_for_conn(struct bt_conn *conn) {
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_PREF_WEAK_BOND)
+    for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
+        if (peripherals[i].state == PERIPHERAL_SLOT_STATE_OPEN) {
+            // Be sure the slot is fully reinitialized.
+            release_ir_peripheral_slot(i);
+            peripherals[i].conn = conn;
+            peripherals[i].state = PERIPHERAL_SLOT_STATE_CONNECTED;
+            return i;
+        }
+    }
+#else
     int i = zmk_ble_put_peripheral_addr(bt_conn_get_dst(conn));
     if (i >= 0) {
         if (peripherals[i].state == PERIPHERAL_SLOT_STATE_OPEN) {
@@ -98,6 +109,7 @@ static int reserve_ir_peripheral_slot_for_conn(struct bt_conn *conn) {
             return i;
         }
     }
+#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_PREF_WEAK_BOND)
 
     return -ENOMEM;
 }
