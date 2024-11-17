@@ -124,12 +124,12 @@ int release_ir_peripheral_slot_for_conn(struct bt_conn *conn) {
 }
 
 #if CONFIG_INPUT
-K_MSGQ_DEFINE(peripheral_input_event_msgq, sizeof(struct input_event),
+K_MSGQ_DEFINE(peripheral_input_relay_event_msgq, sizeof(struct input_event),
               CONFIG_ZMK_SPLIT_BLE_CENTRAL_POSITION_QUEUE_SIZE, 4);
 
-void peripheral_input_event_work_callback(struct k_work *work) {
+void peripheral_input_relay_event_work_callback(struct k_work *work) {
     struct input_event ev;
-    while (k_msgq_get(&peripheral_input_event_msgq, &ev, K_NO_WAIT) == 0) {
+    while (k_msgq_get(&peripheral_input_relay_event_msgq, &ev, K_NO_WAIT) == 0) {
         LOG_DBG("Trigger input change for %d/%d/%d/%d", 
                 ev.type, ev.code, ev.value, ev.sync?0:1);
         switch (ev.type) {
@@ -146,7 +146,7 @@ void peripheral_input_event_work_callback(struct k_work *work) {
     }
 }
 
-K_WORK_DEFINE(peripheral_input_event_work, peripheral_input_event_work_callback);
+K_WORK_DEFINE(peripheral_input_event_work, peripheral_input_relay_event_work_callback);
 
 const struct device* virtual_input_device_get_for_relay_channel(uint8_t relay_channel);
 
@@ -175,7 +175,7 @@ static uint8_t split_central_input_notify_func(struct bt_conn *conn,
         .sync = evt.sync, .type = evt.type,
         .code = evt.code, .value = evt.value};
 
-    k_msgq_put(&peripheral_input_event_msgq, &ev, K_NO_WAIT);
+    k_msgq_put(&peripheral_input_relay_event_msgq, &ev, K_NO_WAIT);
     k_work_submit(&peripheral_input_event_work);
 
     return BT_GATT_ITER_CONTINUE;
