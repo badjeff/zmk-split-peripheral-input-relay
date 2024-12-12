@@ -2,6 +2,10 @@
 
 This module add a input relay to input subsystem for ZMK.
 
+> [!IMPORTANT]
+> UPDATE (2024-12-12): ZMK [PR #2477](https://github.com/zmkfirmware/zmk/pull/2477) has been merged into main branch. This module is no longer needed.
+> The feature details is available on ZMK Hardware Integration for [pointing devices on split peripherals](https://zmk.dev/docs/development/hardware-integration/pointing#split).
+
 ## What it does
 
 This module sideload a new set of GATT Service and Characteratics into existing split bt paired connection. The new characteristics allow to transfer input event from peripherals to central with a relay-channel id. Then, input events would re-emitted from a `zmk,virtual-device` on central. The events from peripherals could be handled by `zmk,input-listener` on central side.
